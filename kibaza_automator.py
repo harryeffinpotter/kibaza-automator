@@ -9,11 +9,17 @@ from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.common.keys import Keys  # Add this import
 from datetime import datetime
+from dotenv import load_dotenv
 import argparse
 import sys
 
 from selenium import webdriver
 from selenium.webdriver.chrome.service import Service
+load_dotenv()
+
+EMAIL = os.getenv("EMAIL")
+SELLER_NUMBER = os.getenv("SELLER_NUMBER")
+EVENT_NAME = os.getenv("EVENT_NAME")
 
 # Update these selectors if the actual page uses different attributes
 LOGIN_BUTTON_SELECTOR = (By.ID, "login-button")  # Selector for login button on the login page
@@ -44,10 +50,8 @@ SUBMIT_ITEM_BUTTON_SELECTOR = (By.CSS_SELECTOR, "input.js-submit[name='js-submit
 
 def login(driver, email, seller_number):
     # Navigate to the login page.
-    driver.get("https://www.kibaza.de/archemedes")
+    driver.get(f"https://www.kibaza.de/{EVENT_NAME}")
     driver.get("https://www.kibaza.de/login.php")
-    
-
     # Wait until the email input is present and fill in the credentials.
     email_input = WebDriverWait(driver, 10).until(
         EC.presence_of_element_located(EMAIL_INPUT_SELECTOR)
@@ -412,14 +416,7 @@ def select_subsubcategory(driver, category_id, subsubcategory_value):
         print("Sub-subcategory selection error:", e)
         return False
 
-def find_visible_one(driver, name_to_search):
-    # find elements by name and return the first one of them that is visble
-    all_elements = driver.find_elements(By.NAME, name_to_search)
-    element = None
-    for element in all_elements:
-        if element.is_displayed():
-            return element, True
-    return element, False
+
 
 
 def post_item(driver, item_data):
@@ -690,8 +687,6 @@ def validate_categories(csv_path):
 
 def main():
     # Replace these credentials with your actual values.
-    email = "william.swartwood86@gmail.com"
-    seller_number = "V28296"
     
     # Set up Selenium WebDriver using Chrome.
     # chrome_options = uc.ChromeOptions()
@@ -721,7 +716,7 @@ def main():
         sys.exit(0)
 
     try:
-        login(driver, email, seller_number)
+        login(driver, EMAIL, SELLER_NUMBER)
         time.sleep(0.5)  # Post-modal dismissal
         
         # Read items from CSV file. 
