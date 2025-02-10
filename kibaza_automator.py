@@ -12,6 +12,9 @@ from datetime import datetime
 import argparse
 import sys
 
+from selenium import webdriver
+from selenium.webdriver.chrome.service import Service
+
 # Update these selectors if the actual page uses different attributes
 LOGIN_BUTTON_SELECTOR = (By.ID, "login-button")  # Selector for login button on the login page
 EMAIL_INPUT_SELECTOR = (By.NAME, "email")  # Selector for the email input field
@@ -28,6 +31,7 @@ POST_SUBMIT_SELECTOR = (By.ID, "post-submit")     # Selector for the post submit
 
 CATEGORY_SELECTOR = (By.NAME, "category")
 SUBCATEGORY_SELECTOR = (By.CSS_SELECTOR, "[name='subcategory[]']")
+SUBSUBCATEGORY_SELECTOR = (By.CSS_SELECTOR, "[name='classification[]']")
 NAME_SELECTOR = (By.NAME, "name")
 DESCRIPTION_SELECTOR = (By.NAME, "description")
 PRICE_SELECTOR = (By.NAME, "price")
@@ -354,6 +358,70 @@ def select_subcategory(driver, category_id, subcategory_value):
         print("Subcategory selection error:", e)
         return False
     
+def select_subsubcategory(driver, category_id, subsubcategory_value):
+    """
+    Select the subsubcategory for the given category.
+    If the subsubcategory element is not found and no subsubcategory_value is provided,
+    the function assumes no subsubcategory is required and returns True.
+    """
+    try:
+        # Build a CSS selector for the subsubcategory container
+        container_selector = f"div.js-subsubcategory-container-{category_id}"
+        # Wait for the container element to appear (even if it's hidden, we rely on its existence)
+        try:
+            WebDriverWait(driver, 5).until(
+                EC.presence_of_element_located((By.CSS_SELECTOR, container_selector))
+            )
+        except Exception:
+            if not subsubcategory_value:
+                print(f"No subsubcategory needed for category {category_id}")
+                return True
+            else:
+                raise Exception(f"Subsubcategory container '{container_selector}' not found for required subsubcategory value '{subsubcategory_value}'")
+        
+        # If no subcategory value is provided, skip selection.
+        if not subsubcategory_value:
+            print("No sub-subcategory value provided; skipping sub-subcategory selection.")
+            return True
+        
+        import json
+        # Build CSS selector for the <select> element inside the container (unchanged)
+        select_selector = f'select.js-subcategory-{category_id}[name="classification[]"]'
+        
+        # Use json.dumps to safely embed the selector and subcategory value.
+        selector_js = json.dumps(select_selector)
+        value_js = json.dumps(subsubcategory_value)
+        
+        js_script = f"""
+            const select = document.querySelector({selector_js});
+            if (select) {{
+                select.value = {value_js};
+                select.dispatchEvent(new Event('change', {{ bubbles: true }}));
+            }} else {{
+                throw "Sub-subcategory element not found for selector: " + {selector_js};
+            }}
+        """
+        driver.execute_script(js_script)
+        # Verify the value was set
+        current_value = driver.execute_script(f"return document.querySelector('{select_selector}').value")
+        if current_value != subsubcategory_value:
+            raise Exception(f"Failed to set sub-subcategory: expected {subsubcategory_value}, got {current_value}")
+        print(f"Sub-subcategory set to {current_value} successfully")
+        return True
+    except Exception as e:
+        print("Sub-subcategory selection error:", e)
+        return False
+
+def find_visible_one(driver, name_to_search):
+    # find elements by name and return the first one of them that is visble
+    all_elements = driver.find_elements(By.NAME, name_to_search)
+    element = None
+    for element in all_elements:
+        if element.is_displayed():
+            return element, True
+    return element, False
+
+
 def post_item(driver, item_data):
     driver.get("https://www.kibaza.de/product_add.php")
     time.sleep(1.5)
@@ -431,25 +499,51 @@ def post_item(driver, item_data):
             current_value = driver.execute_script(f"return document.querySelector('{select_selector}').value")
             print(f"Current subcategory value after attempt: {current_value}")
             return
-        # After subcategory selection and before form submission, upload image if provided
+        
+        # Handle sub-subcategory selection
+        try:
+            # Find all js-classification elements
+            subsub_dropdown_element, success = find_visible_one(driver, "classification[]")
+            if success:
+                select = Select(subsub_dropdown_element)
+                select.select_by_visible_text(item_data["subsubcategory"])
+                print("Successfully selected sub sub category")
+            else:
+                print("No visible js-classification element found.") 
+        except Exception as e:
+            print(f'Error in sub-sub category: {e}.')
+            return
+
+
+        # After subsubcategory selection and before form submission, upload image if provided
         import os
-        image_filename = item_data.get("images")
-        if image_filename:
-            image_path = os.path.join(os.getcwd(), image_filename)
-            print("Uploading image from:", image_path)
-            image_input = driver.find_element(By.NAME, "productImages[]")
-            image_input.send_keys(image_path)
+        image_filenames = item_data.get("images")
+        if image_filenames:
+            # image_path = os.path.join(os.getcwd(), image_filename)
+            # print("Uploading image from:", image_path)
+            # image_input = driver.find_element(By.NAME, "productImages[]")
+            # image_input.send_keys(image_path)
+
+            # Assuming 'images' is a string containing comma-separated filenames
+            split_image_filenames = [filename.strip() for filename in image_filenames.split(',')]
+
+            # Create a list of full file paths
+            file_paths = [os.path.join(os.getcwd(), "Fotos", filename) for filename in split_image_filenames]
+
+            # Join the file paths with newline characters
+            multiple_file_paths = "\n".join(file_paths)
+
+            print("Uploading image from:", multiple_file_paths)
+            image_input_buttons = driver.find_elements(By.NAME, "productImages[]")
+            multiple_images_button = image_input_buttons[3]
+            multiple_images_button.send_keys(multiple_file_paths)
+
         try:
             CONDITION_SELECTOR = (By.NAME, "productCondition")
 
             if item_data.get("condition"):
                 try:
-                    condition_map = {
-                        "new": "Neu",
-                        "used": "Gebraucht",
-                        "defect": "Defekt"
-                    }
-                    condition_text = condition_map.get(item_data["condition"].lower())
+                    condition_text = item_data["condition"]
                     if not condition_text:
                         raise ValueError(f"Invalid condition: {item_data['condition']}")
                         
@@ -462,7 +556,12 @@ def post_item(driver, item_data):
                 Select(driver.find_element(*CONDITION_SELECTOR)).select_by_index(1)  # Default to first option
             # Handle dynamic fields
             if item_data.get("size"):
-                Select(driver.find_element(*SIZE_SELECTOR)).select_by_visible_text(item_data["size"])
+                size_dropdown_element, success = find_visible_one(driver, "size[]")
+                if success:
+                    select = Select(size_dropdown_element)
+                    select.select_by_visible_text(item_data["size"])
+
+
             # Conditional brand and gender handling
             if item_data.get("brand"):
                 try:
@@ -595,16 +694,19 @@ def main():
     seller_number = "V28296"
     
     # Set up Selenium WebDriver using Chrome.
-    chrome_options = uc.ChromeOptions()
-    chrome_options.binary_location = "/usr/bin/chromium"
-    chrome_options.add_argument("--no-sandbox")
-    chrome_options.add_argument("--disable-dev-shm-usage")
-    chrome_options.add_argument("--user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/90.0.4430.212 Safari/537.36")
+    # chrome_options = uc.ChromeOptions()
+    # chrome_options.binary_location = "/usr/bin/chromium"
+    # chrome_options.add_argument("--no-sandbox")
+    # chrome_options.add_argument("--disable-dev-shm-usage")
+    # chrome_options.add_argument("--user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/90.0.4430.212 Safari/537.36")
     
-    driver = uc.Chrome(
-        options=chrome_options,
-        version_main=133
-    )
+    # driver = uc.Chrome(
+    #     options=chrome_options,
+    #     version_main=133
+    # )
+
+    service = Service(executable_path = "chromedriver.exe")
+    driver = webdriver.Chrome(service = service)
 
     parser = argparse.ArgumentParser()
     parser.add_argument("--validate", action="store_true", help="Validate CSV categories before submission")
