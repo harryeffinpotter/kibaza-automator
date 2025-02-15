@@ -327,6 +327,22 @@ def post_item(driver, item_data):
                     select = Select(brand_dropdown_element)
                     select.select_by_visible_text(item_data["brand"])        
 
+            # if item_data.get("brand"):
+            #     try:
+            #         time.sleep(1.5)
+            #         brand_input = driver.find_element(By.NAME, "brand[]")
+            #         #brand_input = WebDriverWait(driver, 5).until(EC.presence_of_element_located(BRAND_SELECTOR))
+            #         select = Select(brand_input)
+            #         for option in select.options:
+            #             print(option.text)
+            #         select.select_by_visible_text(item_data["brand"])
+            #         time.sleep(0.3)
+            #     except:
+            #         print("Brand field not present for this category")
+
+
+
+
             if item_data.get("gender"):
                 try:
                     gender_field = WebDriverWait(driver, 3).until(
@@ -462,29 +478,59 @@ def main():
     try:
         login(driver, EMAIL, SELLER_NUMBER)
         time.sleep(0.5)  # Post-modal dismissal
-        
-        # Read items from CSV file. 
-        # The CSV file must have column headers, for example: title,description,price,images
-        rows = []
+         # Read all items from CSV file
         with open("items.csv", newline='', encoding='utf-8') as csvfile:
             reader = csv.DictReader(csvfile)
             fieldnames = reader.fieldnames
-            for row in reader:
-                if row['sold'] != "sold":
+            rows = list(reader)
+
+        # Process each row
+        for i, row in enumerate(rows):
+            if row['sold'] != "sold":
+                try:
                     id = post_item(driver, row)
                     row['id'] = id
-                    rows.append(row)
-                    # Optional: wait between posts to allow the site to process each submission.
+                    
+                    # Save the updated table after each successful post
+                    with open("items.csv", 'w', newline='', encoding='utf-8') as csvfile:
+                        writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
+                        writer.writeheader()
+                        writer.writerows(rows)
+                    
+                    print(f"Successfully added item {i+1}/{len(rows)}")
+                    
+                    # Optional: wait between posts
                     time.sleep(2)
-        # Write the updated data back to the CSV file
-        with open("items.csv", 'w', newline='', encoding='utf-8') as csvfile:
-            writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
-            writer.writeheader()
-            writer.writerows(rows)
+                except Exception as e:
+                    print(f"Error processing item {i+1}: {e}")
+                    # Continue with the next item
+            else:
+                print(f"Skipping sold item {i+1}/{len(rows)}")
+
     except Exception as e:
-        print("An error occurred:", e)
-    finally:
-        driver.quit()
+        print("An error occurred while reading or writing the file:", e)
+    #     # Read items from CSV file. 
+    #     # The CSV file must have column headers, for example: title,description,price,images
+    #     rows = []
+    #     with open("items.csv", newline='', encoding='utf-8') as csvfile:
+    #         reader = csv.DictReader(csvfile)
+    #         fieldnames = reader.fieldnames
+    #         for row in reader:
+    #             if row['sold'] != "sold":
+    #                 id = post_item(driver, row)
+    #                 row['id'] = id
+    #                 rows.append(row)
+    #                 # Optional: wait between posts to allow the site to process each submission.
+    #                 time.sleep(2)
+    #     # Write the updated data back to the CSV file
+    #     with open("items.csv", 'w', newline='', encoding='utf-8') as csvfile:
+    #         writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
+    #         writer.writeheader()
+    #         writer.writerows(rows)
+    # except Exception as e:
+    #     print("An error occurred:", e)
+    # finally:
+    #     driver.quit()
 
 
 if __name__ == "__main__":

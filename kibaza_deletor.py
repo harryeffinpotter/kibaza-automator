@@ -122,10 +122,10 @@ def check_if_item_should_be_spared(delete_button, items_to_spare):
     if match:
         product_id = match.group(1)
         if product_id in items_to_spare:
-            return True # i made it this way so that it defaults to True and really only returns False if everything went well here
+            return True, product_id # i made it this way so that it defaults to True and really only returns False if everything went well here
         else:
-            return False
-    return True
+            return False, product_id
+    return True, 0
 
 def delete_all_items(driver, items_to_spare):
     driver.get("https://www.kibaza.de/product_list.php?status=1")
@@ -139,7 +139,7 @@ def delete_all_items(driver, items_to_spare):
             delete_buttons = driver.find_elements(By.CSS_SELECTOR, "button.btn.btn-danger.btn-sm")
             deleted_something = False
             for delete_button in delete_buttons:
-                spare_this = check_if_item_should_be_spared(delete_button, items_to_spare)
+                spare_this, product_id = check_if_item_should_be_spared(delete_button, items_to_spare)
                 if not spare_this:
                     delete_button.click() 
                     time.sleep(1.5)
@@ -150,6 +150,7 @@ def delete_all_items(driver, items_to_spare):
                     confirm_button = modal.find_element(By.XPATH, ".//button[contains(text(), 'Ja, löschen')]")                   
                     # Click the confirmation button
                     confirm_button.click()
+                    delete_product_id_from_csv(product_id)
                     print("Item deleted")
                     time.sleep(1.5) # pause before next deletion
                     deleted_something = True
@@ -163,6 +164,21 @@ def delete_all_items(driver, items_to_spare):
         print("Error while deleting items.")
         return
 
+def delete_product_id_from_csv(product_id):
+    rows = []
+    with open("items.csv", newline='', encoding='utf-8') as csvfile:
+        reader = csv.DictReader(csvfile)
+        fieldnames = reader.fieldnames
+        for row in reader:
+            if row['id'] in product_id:
+                row['id'] = ""
+            rows.append(row)
+
+    # Write the updated data back to the CSV file
+    with open("items.csv", 'w', newline='', encoding='utf-8') as csvfile:
+        writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
+        writer.writeheader()
+        writer.writerows(rows)
 
 def find_sold_items(driver):
     driver.get("https://www.kibaza.de/product_list.php?status=1")
