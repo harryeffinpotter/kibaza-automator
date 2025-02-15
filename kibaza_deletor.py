@@ -141,8 +141,13 @@ def delete_all_items(driver, items_to_spare):
                 spare_this = check_if_item_should_be_spared(delete_button, items_to_spare)
                 if not spare_this:
                     delete_button.click() 
-                    confirm_button = driver.find_element(By.XPATH, "//button[contains(text(), 'Ja, löschen')]")
-                    driver.execute_script("arguments[0].click();", confirm_button)
+                    # Wait for the modal to appear
+                    WebDriverWait(driver, 10).until(EC.presence_of_element_located((By.CLASS_NAME, "modal-content")))                  
+                    # Find the confirmation button within the same modal
+                    modal = driver.find_element(By.XPATH, "//div[contains(@class, 'modal') and contains(@style, 'display: block')]")
+                    confirm_button = modal.find_element(By.XPATH, ".//button[contains(text(), 'Ja, löschen')]")                   
+                    # Click the confirmation button
+                    confirm_button.click()
                     print("Item deleted")
                     time.sleep(1.5) # pause before next deletion
 
@@ -172,7 +177,8 @@ def find_sold_items(driver):
             product_id = element.text.split("#")[1].strip()
             product_id_number = re.findall(r'^\d+', product_id)[0]
             sold_ids.add(product_id_number)
-    
+
+    print("IDs of sold items found:", sold_ids)
     return sold_ids
             
 def mark_sold_items_in_csv(sold_ids):
