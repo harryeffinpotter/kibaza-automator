@@ -192,7 +192,7 @@ def post_item(driver, item_data):
         for field in required_fields:
             if field not in item_data:
                 print(f"Missing required field: {field}")
-                return
+                return 0
 
         # Fill basic fields
         driver.find_element(*NAME_SELECTOR).send_keys(item_data["title"])
@@ -205,7 +205,7 @@ def post_item(driver, item_data):
             category_value = CATEGORY_MAP.get(category_name)
             if not category_value:
                 print(f"Invalid category: {category_name}. Valid options: {', '.join(CATEGORY_MAP.keys())}")
-                return
+                return 0
                 
             category_select = WebDriverWait(driver, 5).until(
                 EC.presence_of_element_located(CATEGORY_SELECTOR)
@@ -215,7 +215,7 @@ def post_item(driver, item_data):
             
         except Exception as e:
             print(f"Category selection failed: {str(e)}")
-            return
+            return 0
 
         # Handle subcategory selection
         try:
@@ -236,11 +236,11 @@ def post_item(driver, item_data):
 
             if not subcategory_value:
                 print(f"Invalid subcategory: {subcategory_name}. Valid options: {list(SUBCATEGORY_MAP[category_name].keys())}")
-                return
+                return 0
 
             if not select_subcategory(driver, category_value, subcategory_value):
                 print("Error setting subcategory.")
-                return False
+                return 0
 
             # New verification: Check the select's value directly
             current_value = driver.execute_script(f"return document.querySelector('{select_selector}').value")
@@ -256,7 +256,7 @@ def post_item(driver, item_data):
             # Additional debug: Check current value
             current_value = driver.execute_script(f"return document.querySelector('{select_selector}').value")
             print(f"Current subcategory value after attempt: {current_value}")
-            return
+            return 0
         
         # Handle sub-subcategory selection
         try:
@@ -270,7 +270,7 @@ def post_item(driver, item_data):
                 print("No visible js-classification element found.") 
         except Exception as e:
             print(f'Error in sub-sub category: {e}.')
-            return
+            return 0
 
 
         # After subsubcategory selection and before form submission, upload image if provided
@@ -308,7 +308,7 @@ def post_item(driver, item_data):
                     Select(driver.find_element(*CONDITION_SELECTOR)).select_by_visible_text(condition_text)
                 except Exception as e:
                     print(f"Failed to set condition: {str(e)}")
-                    return
+                    return 0
             else:
                 print("Warning: No condition specified, using default")
                 Select(driver.find_element(*CONDITION_SELECTOR)).select_by_index(1)  # Default to first option
@@ -379,6 +379,7 @@ def post_item(driver, item_data):
             )
             product_id = driver.current_url.split("justCreatedProductId=")[1].split("&")[0]
             print(f"Item successfully created! Product ID: {product_id}")
+            return product_id
             
         except Exception as e:
             # Check if we actually succeeded despite error
@@ -393,7 +394,7 @@ def post_item(driver, item_data):
                 with open(f"page_source_{timestamp}.html", "w") as f:
                     f.write(driver.page_source)
                 print(f"Saved debug files: submit_error_{timestamp}.png and page_source_{timestamp}.html")
-                return
+                return 0
     except Exception as e:
         print(f"Error posting item: {str(e)}")
         raise
@@ -468,12 +469,21 @@ def main():
         
         # Read items from CSV file. 
         # The CSV file must have column headers, for example: title,description,price,images
+        rows = []
         with open("items.csv", newline='', encoding='utf-8') as csvfile:
             reader = csv.DictReader(csvfile)
+            fieldnames = reader.fieldnames
             for row in reader:
-                post_item(driver, row)
+                id = post_item(driver, row)
+                row['id'] = id
+                rows.append(row)
                 # Optional: wait between posts to allow the site to process each submission.
                 time.sleep(2)
+        # Write the updated data back to the CSV file
+        with open("items.csv", 'w', newline='', encoding='utf-8') as csvfile:
+            writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
+            writer.writeheader()
+            writer.writerows(rows)
     except Exception as e:
         print("An error occurred:", e)
     finally:
