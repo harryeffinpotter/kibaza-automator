@@ -133,7 +133,7 @@ def delete_all_items(driver):
                 return
 
 
-def find_sold_items_in_csv(driver):
+def find_sold_items(driver):
     driver.get("https://www.kibaza.de/product_list.php?status=1")
     time.sleep(1.5)
     close_modal(driver)
@@ -158,7 +158,22 @@ def find_sold_items_in_csv(driver):
     
     return sold_ids
             
+def mark_sold_items_in_csv(sold_ids):
+    rows = []
+    with open("items.csv", newline='', encoding='utf-8') as csvfile:
+        reader = csv.DictReader(csvfile)
+        fieldnames = reader.fieldnames
+        for row in reader:
+            # Assuming 'id' is the column name for the item ID
+            if row['id'] in sold_ids:
+                row['sold'] = "sold"
+            rows.append(row)
 
+    # Write the updated data back to the CSV file
+    with open("items.csv", 'w', newline='', encoding='utf-8') as csvfile:
+        writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
+        writer.writeheader()
+        writer.writerows(rows)
 
 
 
@@ -191,8 +206,9 @@ def main():
         time.sleep(0.5)  # Post-modal dismissal
         
         # find out which items were sold
-        find_sold_items_in_csv(driver)
-        
+        sold_ids = find_sold_items(driver)
+        # mark sold items in csv
+        mark_sold_items_in_csv(sold_ids)
 
 
         # delete all items
