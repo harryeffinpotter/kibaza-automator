@@ -174,8 +174,30 @@ def mark_sold_items_in_csv(sold_ids):
         writer.writerows(rows)
     print("sold items marked in csv")
 
+def find_favored_items(driver):
+    driver.get("https://www.kibaza.de/product_list.php?status=1")
+    time.sleep(1.5)
+    close_modal(driver)
+    time.sleep(1.5)
 
+    all_filter_dropdowns = driver.find_elements(By.CSS_SELECTOR, "select.form-control")
+    select = Select(all_filter_dropdowns[2])
+    options = select.options
+    select.select_by_index(3)
 
+    filter_button = driver.find_element(By.NAME, "filterbutton")
+    filter_button.click()
+    time.sleep(1.5) 
+
+    fav_ids = set()
+    elements = driver.find_elements(By.XPATH, "//a[contains(@href, 'productId=')]")
+    for element in elements:
+        href = element.get_attribute("href")
+        match = re.search(r'productId=(\d+)', href)
+        if match:
+            fav_ids.add(match.group(1))
+    print("Product IDs found:", fav_ids)
+    return fav_ids
 
 
 
@@ -185,6 +207,8 @@ def mark_sold_items_in_csv(sold_ids):
 
 
 def main():
+    delete_favorites = input("Delete favored items? (y/n): ").lower() == 'y'
+
     service = Service(executable_path = "chromedriver.exe")
     driver = webdriver.Chrome(service = service)
 
@@ -209,9 +233,13 @@ def main():
         # mark sold items in csv
         mark_sold_items_in_csv(sold_ids)
 
-
-        # delete all items
-        delete_all_items(driver)
+        if delete_favorites:
+            # delete all items
+            delete_all_items(driver)
+        else:
+            # find favored items
+            # delete all items except favored ones
+            fav_ids = find_favored_items(driver)
 
         time.sleep(2)
     except Exception as e:
