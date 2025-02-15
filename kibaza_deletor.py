@@ -12,6 +12,7 @@ from datetime import datetime
 import argparse
 import sys
 from dotenv import load_dotenv
+import re
 
 from selenium import webdriver
 from selenium.webdriver.chrome.service import Service
@@ -132,8 +133,41 @@ def delete_all_items(driver):
                 return
 
 
-def mark_sold_items_in_csv(driver):
-    pass
+def find_sold_items_in_csv(driver):
+    driver.get("https://www.kibaza.de/product_list.php?status=1")
+    time.sleep(1.5)
+    close_modal(driver)
+    time.sleep(1.5)
+
+    all_filter_dropdowns = driver.find_elements(By.CSS_SELECTOR, "select.form-control")
+    select = Select(all_filter_dropdowns[2])
+    options = select.options
+    select.select_by_index(4)
+
+    filter_button = driver.find_element(By.NAME, "filterbutton")
+    filter_button.click()
+
+    sold_ids = set()
+    elements = driver.find_elements(By.XPATH, "//*[string-length(text()) > 0]")
+    for element in elements:
+        if "ProduktId:" in element.text:
+            product_id = element.text.split("#")[1].strip()
+            product_id_number = re.findall(r'^\d+', product_id)[0]
+            print(f"Found Product ID: {product_id_number}")
+            sold_ids.add(product_id_number)
+    
+    return sold_ids
+            
+
+
+
+
+
+
+
+
+
+    
 
 
 def main():
@@ -156,8 +190,10 @@ def main():
         login(driver, EMAIL, SELLER_NUMBER)
         time.sleep(0.5)  # Post-modal dismissal
         
-        # find out which items were sold or saved
-        mark_sold_items_in_csv(driver)
+        # find out which items were sold
+        find_sold_items_in_csv(driver)
+        
+
 
         # delete all items
         delete_all_items(driver)
