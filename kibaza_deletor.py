@@ -132,15 +132,17 @@ def delete_all_items(driver, items_to_spare):
     time.sleep(1.5)
     close_modal(driver)
     time.sleep(1.5)
-    
-    button_found = True
-    while button_found:
-        try:
+
+    try:
+        while True: # repeat until break signal 
+            time.sleep(1.5)
             delete_buttons = driver.find_elements(By.CSS_SELECTOR, "button.btn.btn-danger.btn-sm")
+            deleted_something = False
             for delete_button in delete_buttons:
                 spare_this = check_if_item_should_be_spared(delete_button, items_to_spare)
                 if not spare_this:
                     delete_button.click() 
+                    time.sleep(1.5)
                     # Wait for the modal to appear
                     WebDriverWait(driver, 10).until(EC.presence_of_element_located((By.CLASS_NAME, "modal-content")))                  
                     # Find the confirmation button within the same modal
@@ -150,10 +152,16 @@ def delete_all_items(driver, items_to_spare):
                     confirm_button.click()
                     print("Item deleted")
                     time.sleep(1.5) # pause before next deletion
+                    deleted_something = True
+                    break
+            if not deleted_something:
+                print("No more items to delete.")
+                break
 
-        except Exception as e:
-            print("No more items to delete.")
-            return
+
+    except Exception as e:
+        print("Error while deleting items.")
+        return
 
 
 def find_sold_items(driver):
