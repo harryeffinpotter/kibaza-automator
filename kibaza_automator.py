@@ -474,11 +474,12 @@ def main():
             reader = csv.DictReader(csvfile)
             fieldnames = reader.fieldnames
             for row in reader:
-                id = post_item(driver, row)
-                row['id'] = id
-                rows.append(row)
-                # Optional: wait between posts to allow the site to process each submission.
-                time.sleep(2)
+                if row['sold'] != "sold":
+                    id = post_item(driver, row)
+                    row['id'] = id
+                    rows.append(row)
+                    # Optional: wait between posts to allow the site to process each submission.
+                    time.sleep(2)
         # Write the updated data back to the CSV file
         with open("items.csv", 'w', newline='', encoding='utf-8') as csvfile:
             writer = csv.DictWriter(csvfile, fieldnames=fieldnames)

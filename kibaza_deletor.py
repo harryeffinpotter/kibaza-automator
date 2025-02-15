@@ -153,7 +153,6 @@ def find_sold_items(driver):
         if "ProduktId:" in element.text:
             product_id = element.text.split("#")[1].strip()
             product_id_number = re.findall(r'^\d+', product_id)[0]
-            print(f"Found Product ID: {product_id_number}")
             sold_ids.add(product_id_number)
     
     return sold_ids
@@ -164,7 +163,6 @@ def mark_sold_items_in_csv(sold_ids):
         reader = csv.DictReader(csvfile)
         fieldnames = reader.fieldnames
         for row in reader:
-            # Assuming 'id' is the column name for the item ID
             if row['id'] in sold_ids:
                 row['sold'] = "sold"
             rows.append(row)
@@ -174,6 +172,7 @@ def mark_sold_items_in_csv(sold_ids):
         writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
         writer.writeheader()
         writer.writerows(rows)
+    print("sold items marked in csv")
 
 
 
