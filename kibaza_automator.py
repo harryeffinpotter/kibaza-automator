@@ -322,15 +322,11 @@ def post_item(driver, item_data):
 
             # Conditional brand and gender handling
             if item_data.get("brand"):
-                try:
-                    brand_input = WebDriverWait(driver, 5).until(
-                        EC.presence_of_element_located(BRAND_SELECTOR)
-                    )
-                    brand_input.clear()
-                    brand_input.send_keys(item_data["brand"])
-                    time.sleep(0.3)
-                except:
-                    print("Brand field not present for this category")
+                brand_dropdown_element, success = find_visible_one(driver, "brand[]")
+                if success:
+                    select = Select(brand_dropdown_element)
+                    select.select_by_visible_text(item_data["brand"])        
+
             if item_data.get("gender"):
                 try:
                     gender_field = WebDriverWait(driver, 3).until(
