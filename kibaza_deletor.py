@@ -112,25 +112,43 @@ def validate_categories(csv_path):
                     valid = False
     return valid
 
-def delete_all_items(driver):
-        driver.get("https://www.kibaza.de/product_list.php?status=1")
-        time.sleep(1.5)
-        close_modal(driver)
-        time.sleep(1.5)
-        
-        button_found = True
-        while button_found:
-            try:
-                delete_button = driver.find_element(By.CSS_SELECTOR, "button.btn.btn-danger.btn-sm")
-                delete_button.click() 
-                confirm_button = driver.find_element(By.XPATH, "//button[contains(text(), 'Ja, löschen')]")
-                driver.execute_script("arguments[0].click();", confirm_button)
-                print("Item deleted")
-                time.sleep(1.5) # pause before next deletion
+def check_if_item_should_be_spared(delete_button, items_to_spare):
+    # Find the closest parent td element
+    row = delete_button.find_element(By.XPATH, "./ancestor::tr")
+    product_id_cell = row.find_element(By.XPATH, "./preceding-sibling::tr[1]/td[2]")
+    # Check if the td contains a product ID that's in our set
+    text_to_search = product_id_cell.text
+    match = re.search(r'ProduktId: #(\d+)', text_to_search)
+    if match:
+        product_id = match.group(1)
+        if product_id in items_to_spare:
+            return True # i made it this way so that it defaults to True and really only returns False if everything went well here
+        else:
+            return False
+    return True
 
-            except Exception as e:
-                print("No more items to delete.")
-                return
+def delete_all_items(driver, items_to_spare):
+    driver.get("https://www.kibaza.de/product_list.php?status=1")
+    time.sleep(1.5)
+    close_modal(driver)
+    time.sleep(1.5)
+    
+    button_found = True
+    while button_found:
+        try:
+            delete_buttons = driver.find_elements(By.CSS_SELECTOR, "button.btn.btn-danger.btn-sm")
+            for delete_button in delete_buttons:
+                spare_this = check_if_item_should_be_spared(delete_button, items_to_spare)
+                if not spare_this:
+                    delete_button.click() 
+                    confirm_button = driver.find_element(By.XPATH, "//button[contains(text(), 'Ja, löschen')]")
+                    driver.execute_script("arguments[0].click();", confirm_button)
+                    print("Item deleted")
+                    time.sleep(1.5) # pause before next deletion
+
+        except Exception as e:
+            print("No more items to delete.")
+            return
 
 
 def find_sold_items(driver):
@@ -196,7 +214,7 @@ def find_favored_items(driver):
         match = re.search(r'productId=(\d+)', href)
         if match:
             fav_ids.add(match.group(1))
-    print("Product IDs found:", fav_ids)
+    print("IDs of favorite items found:", fav_ids)
     return fav_ids
 
 
@@ -233,13 +251,16 @@ def main():
         # mark sold items in csv
         mark_sold_items_in_csv(sold_ids)
 
+        items_to_spare = []
         if delete_favorites:
             # delete all items
-            delete_all_items(driver)
+            delete_all_items(driver, items_to_spare)
         else:
             # find favored items
             # delete all items except favored ones
             fav_ids = find_favored_items(driver)
+            delete_all_items(driver, fav_ids)
+
 
         time.sleep(2)
     except Exception as e:
