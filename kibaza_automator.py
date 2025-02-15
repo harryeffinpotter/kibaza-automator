@@ -15,7 +15,7 @@ from selenium import webdriver
 from selenium.webdriver.chrome.service import Service
 from dotenv import load_dotenv
 from utilities import find_visible_one
-from maps import CATEGORY_MAP, SUBCATEGORY_CONTAINER_MAP, SUBCATEGORY_MAP, SIZE_MAP
+from maps import CATEGORY_MAP, SUBCATEGORY_MAP
 
 load_dotenv()
 EMAIL = os.getenv("EMAIL")
