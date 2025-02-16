@@ -267,6 +267,8 @@ def post_item(driver, item_data):
             subsub_dropdown_element, success = find_visible_one(driver, "classification[]")
             if success:
                 select = Select(subsub_dropdown_element)
+                for option in select.options:
+                    print(option.text)
                 select.select_by_visible_text(item_data["subsubcategory"])
                 print("Successfully selected sub sub category")
             else:
