@@ -1,3 +1,6 @@
+## TO DO##
+# only add items that do not have an item number in the csv yet. That way the csv can be expanded without having to delete and repost all items.
+
 #!/usr/bin/env python3
 import csv
 import time
@@ -487,23 +490,24 @@ def main():
         # Process each row
         for i, row in enumerate(rows):
             if row['sold'] != "sold":
-                try:
-                    id = post_item(driver, row)
-                    row['id'] = id
-                    
-                    # Save the updated table after each successful post
-                    with open("items.csv", 'w', newline='', encoding='utf-8') as csvfile:
-                        writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
-                        writer.writeheader()
-                        writer.writerows(rows)
-                    
-                    print(f"Successfully added item {i+1}/{len(rows)}")
-                    
-                    # Optional: wait between posts
-                    time.sleep(2)
-                except Exception as e:
-                    print(f"Error processing item {i+1}: {e}")
-                    # Continue with the next item
+                if row['id'] == "":
+                    try:
+                        id = post_item(driver, row)
+                        row['id'] = id
+                        
+                        # Save the updated table after each successful post
+                        with open("items.csv", 'w', newline='', encoding='utf-8') as csvfile:
+                            writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
+                            writer.writeheader()
+                            writer.writerows(rows)
+                        
+                        print(f"Successfully added item {i+1}/{len(rows)}")
+                        
+                        # Optional: wait between posts
+                        time.sleep(2)
+                    except Exception as e:
+                        print(f"Error processing item {i+1}: {e}")
+                        # Continue with the next item
             else:
                 print(f"Skipping sold item {i+1}/{len(rows)}")
 
