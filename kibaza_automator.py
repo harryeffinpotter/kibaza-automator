@@ -18,6 +18,7 @@ from selenium import webdriver
 from selenium.webdriver.chrome.service import Service
 from dotenv import load_dotenv
 from utilities import find_visible_one
+from utilities import find_gender
 from maps import CATEGORY_MAP, SUBCATEGORY_MAP
 
 load_dotenv()
@@ -262,20 +263,21 @@ def post_item(driver, item_data):
             return 0
         
         # Handle sub-subcategory selection
-        try:
-            # Find all js-classification elements
-            subsub_dropdown_element, success = find_visible_one(driver, "classification[]")
-            if success:
-                select = Select(subsub_dropdown_element)
-                for option in select.options:
-                    print(option.text)
-                select.select_by_visible_text(item_data["subsubcategory"])
-                print("Successfully selected sub sub category")
-            else:
-                print("No visible js-classification element found.") 
-        except Exception as e:
-            print(f'Error in sub-sub category: {e}.')
-            return 0
+        if item_data.get("subsubcategory"):
+            try:
+                # Find all js-classification elements
+                subsub_dropdown_element, success = find_visible_one(driver, "classification[]")
+                if success:
+                    select = Select(subsub_dropdown_element)
+                    for option in select.options:
+                        print(option.text)
+                    select.select_by_visible_text(item_data["subsubcategory"])
+                    print("Successfully selected sub sub category")
+                else:
+                    print("No visible js-classification element found.") 
+            except Exception as e:
+                print(f'Error in sub-sub category: {e}.')
+                return 0                                        
 
 
         # After subsubcategory selection and before form submission, upload image if provided
@@ -345,25 +347,14 @@ def post_item(driver, item_data):
             #     except:
             #         print("Brand field not present for this category")
 
-
-
-
             if item_data.get("gender"):
-                try:
-                    gender_field = WebDriverWait(driver, 3).until(
-                        EC.presence_of_element_located(GENDER_SELECTOR)
-                    )
-                    gender_map = {
-                        "Herren": "Männlich",
-                        "Damen": "Weiblich",
-                        "Unisex": "Unisex"
-                    }
-                    mapped_gender = gender_map.get(item_data["gender"])
-                    if not mapped_gender:
-                        raise ValueError(f"Invalid gender: {item_data['gender']}")
-                    Select(gender_field).select_by_visible_text(mapped_gender)
-                except Exception as e:
-                    print(f"Gender selection skipped: {str(e)}")
+                gender_dropdown_element, success = find_gender(driver, "gender")
+                if success:
+                    select = Select(gender_dropdown_element)
+                    #for option in select.options:
+                    #    print(option.text)
+                    select.select_by_index(2)   
+
         except Exception as e:
             print(f"Error setting item details: {str(e)}")
        

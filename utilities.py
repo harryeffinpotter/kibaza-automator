@@ -8,3 +8,12 @@ def find_visible_one(driver, name_to_search):
         if element.is_displayed():
             return element, True
     return element, False
+
+def find_gender(driver, name_to_search):
+    # find elements by name and return the first one of them that is visble
+    all_elements = driver.find_elements(By.NAME, "gender")
+    element = None
+    for element in all_elements:
+        if element.is_displayed():
+            return element, True
+    return element, False
